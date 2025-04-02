@@ -1,11 +1,12 @@
 """
 Simple main script demonstrating basic functionality.
 """
+import os
 from framework.scheduler.scheduler import Scheduler
 from framework.retraining.detector import Detector
 from framework.inference.inference import Inference
 from framework.trainer.trainer import Trainer, TrainingStatus
-from framework.data_source.data_source import DataSource, DataSourceStatus
+from framework.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
 import random
 
@@ -18,19 +19,6 @@ class DummyInference(Inference):
         print(f"Inferring with input: {input_data}")
         return input_data
 
-
-class DummyDataSource(DataSource):
-    """
-    Dummy data source class for testing.
-    """
-    def get_new_data(self) -> Any:
-        return "data"
-
-    def get_status(self) -> DataSourceStatus:
-        if random.random() < 0.8:
-            return DataSourceStatus.NO_NEW_DATA
-        else:
-            return DataSourceStatus.NEW_DATA_AVAILABLE
 
 class DummyTrainer(Trainer):
     """
@@ -58,7 +46,11 @@ class DummyDetector(Detector):
 
 def main():
     """Main entry point of the script."""
-    datasource = DummyDataSource()
+    # Get the absolute path to the data file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    data_file = os.path.join(current_dir, "data", "btcusd_1-min_data.csv")
+    
+    datasource = CSVDataSource(batch_size=10, interval=1, file=data_file)
     inference = DummyInference()
     trainer = DummyTrainer()
     detector = DummyDetector()
