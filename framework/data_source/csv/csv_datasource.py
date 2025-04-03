@@ -40,6 +40,7 @@ class CSVDataSource(DataSource):
             if self.total_rows > 0:
                 self.status = DataSourceStatus.NEW_DATA_AVAILABLE
                 logger.info(f"Successfully loaded {self.total_rows} rows from CSV file")
+                logger.info(f"CSV columns: {list(self.data.columns)}")
             else:
                 logger.warning("CSV file is empty")
         except Exception as e:
@@ -51,10 +52,10 @@ class CSVDataSource(DataSource):
         
     def get_new_data(self) -> Any:
         """
-        Get the next batch of data.
+        Get the next batch of data from the in-memory DataFrame.
         
         Returns:
-            A pandas DataFrame containing the next batch of records
+            A pandas DataFrame containing the next batch of records with original column names
         """
         if self.status != DataSourceStatus.NEW_DATA_AVAILABLE:
             logger.debug("No new data available")
@@ -62,7 +63,7 @@ class CSVDataSource(DataSource):
             
         # Get the next batch of data
         end_position = min(self.current_position + self.batch_size, self.total_rows)
-        batch = self.data.iloc[self.current_position:end_position]
+        batch = self.data.iloc[self.current_position:end_position].copy()
             
         if not batch.empty:
             logger.info(f"Returning batch of {len(batch)} records (position {self.current_position} to {end_position})")

@@ -6,6 +6,31 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
+class OutputSink(ABC):
+    """
+    Base class for implementing output sinks.
+    """
+    
+    @abstractmethod
+    def receive(self, output: Any) -> Any: 
+        """
+        Read the output of the model.
+        """
+        pass
+
+
+class DataAdapter(ABC):
+    """
+    Base class for implementing data adapters.
+    """
+    
+    @abstractmethod
+    def transform(self, input_data: Any) -> Any:
+        """
+        Transform the input data into a format suitable for the model.
+        """
+        pass
+
 class Inference(ABC):
     """
     Base class for implementing model inference strategies.
