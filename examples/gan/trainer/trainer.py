@@ -2,8 +2,10 @@
 Trainer workflow implementation that follows the framework's Trainer interface.
 """
 import logging
+import os
 import torch
 import random
+import subprocess
 import torch.nn as nn
 import numpy as np
 import pandas as pd
@@ -11,6 +13,7 @@ from torch.utils.data import Dataset
 from typing import Any, Optional
 from framework.trainer.trainer import Trainer, TrainingStatus
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 
 # Configure logging
 logging.basicConfig(
@@ -36,12 +39,81 @@ def remove_random_elements(arr, n):
   new_arr = [item for i, item in enumerate(arr) if i not in indices_to_remove]
   return new_arr
 
+def train_lstm(id, seed):
+    cmd = f'python lstm/train_lstm.py \
+    --exp_id {id} \
+    --training_set_size {TRAINING_SET_SIZE} \
+    --val_set_size {VAL_SET_SIZE} \
+    --test_set_size {TEST_SET_SIZE} \
+    --exp_name lstm_{id} \
+    --seq_len {SAMPLE_LEN} \
+    --prediction_size {PREDICTION_SIZE} \
+    --seed {seed} \
+    --logs_dir logs_{seed} \
+    --epochs {LSTM_EPOCHS * AUGMENTATION}'.split()
+    subprocess.run(cmd)
+
+def train_gan():
+    current_path = os.getcwd()
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    cmd = f'python {os.path.join(script_path, "tts-gan", "train_gan.py")} \
+    -gen_bs 16 \
+    -dis_bs 16 \
+    --load_path {os.path.join(current_path, ".training", "logs", "gan", "Model", "checkpoint")} \
+    --rank 0 \
+    --world-size 1 \
+    --bottom_width 8 \
+    --max_iter 500000 \
+    --img_size 32 \
+    --gen_model my_gen \
+    --dis_model my_dis \
+    --df_dim 384 \
+    --d_heads 4 \
+    --d_depth 3 \
+    --g_depth 5,4,2 \
+    --dropout 0 \
+    --latent_dim 100 \
+    --gf_dim 1024 \
+    --num_workers 8 \
+    --g_lr 0.0001 \
+    --d_lr 0.0003 \
+    --optimizer adam \
+    --loss lsgan \
+    --wd 1e-3 \
+    --beta1 0.9 \
+    --beta2 0.999 \
+    --phi 1 \
+    --batch_size 16 \
+    --num_eval_imgs 50000 \
+    --init_type xavier_uniform \
+    --n_critic 1 \
+    --val_freq 20 \
+    --print_freq 50 \
+    --grow_steps 0 0 \
+    --fade_in 0 \
+    --ema_kimg 500 \
+    --ema_warmup 0.1 \
+    --ema 0.9999 \
+    --diff_aug translation,cutout,color \
+    --seq_len 90 \
+    --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
+    --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
+    --observation_size 30 \
+    --max_epoch 500 \
+    --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
+    --random_seed 42 \
+    --exp_name gan'.split()
+    return subprocess.Popen(cmd)
+
 class DataSet(Dataset):
     """
     DataSet is a class that contains the data for the training workflow.
     """
-    def __init__(self, data: Any):
+    def __init__(self, data: Any, observation_size: int, seq_len: int):
+        print(f"Initializing DataSet with observation size {observation_size} and sequence length {seq_len}")
         self.data = data
+        self.observation_size = observation_size
+        self.seq_len = seq_len
 
     def __len__(self):
         return len(self.data)
@@ -57,13 +129,14 @@ class DataSets:
     """
     DataSets is a class that contains the data sets for the training workflow.
     """
-    def __init__(self, min_samples: int, max_samples: int, split_ratio: float, sequence_length: int): 
+    def __init__(self, min_samples: int, max_samples: int, split_ratio: float, sequence_length: int, observation_size: int): 
         self.min_samples = min_samples
         self.max_samples = max_samples
         self.split_ratio = split_ratio
         self.new_data_buffer = None
         self.training_set = []
         self.validation_set = []
+        self.observation_size = observation_size
         self.sequence_length = sequence_length
 
     def ingest_data(self, data: Any) -> None:
@@ -113,13 +186,13 @@ class DataSets:
         """
         Returns the training set.
         """
-        return DataSet(self.training_set)
+        return DataSet(self.training_set, self.observation_size, self.sequence_length)
     
     def get_validation_set(self) -> Any:
         """
         Returns the validation set.
         """
-        return DataSet(self.validation_set)
+        return DataSet(self.validation_set, self.observation_size, self.sequence_length)
     
 
 class LstmTrainerWithGanAugmentation(Trainer):
@@ -130,20 +203,34 @@ class LstmTrainerWithGanAugmentation(Trainer):
     3. Trains Forecasting model on augmented data.
     """
     
-    def __init__(self, min_samples: int):
+    def __init__(self, min_samples: int, observation_size: int, sequence_length: int):
         """
         Initialize the trainer.
         """
-        self.data_sets = DataSets(min_samples=1000, max_samples=2000, split_ratio=0.2, sequence_length=90)
+        self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
         self.training_status = TrainingStatus.GATHERING_DATA
         logger.info(f"Initialized GAN Trainer")
 
+    def save_data_sets(self) -> None:
+        """
+        Save training and validation sets to disk so the training actual process can load it.
+        """
+        current_path = os.getcwd()
+        root_dir = os.path.join(current_path, ".training")
+        if not os.path.exists(root_dir):
+            os.makedirs(root_dir)
+        torch.save(self.data_sets.get_training_set().data, os.path.join(root_dir, "training_set.pt"))
+        torch.save(self.data_sets.get_validation_set().data, os.path.join(root_dir, "validation_set.pt"))
 
     def train(self, input_data: Any) -> None:
         """
         Run training workflow.
+        1. Save training and validation sets to disk so the training actual process can load it.
+        2. Trigger GAN training process.
+        3. Trigger Forecasting model training process.
         """
-        pass
+        self.save_data_sets()
+        self.training_status = TrainingStatus.TRAINING_IN_PROGRESS
 
 
     def get_status(self) -> TrainingStatus:
@@ -161,5 +248,11 @@ class LstmTrainerWithGanAugmentation(Trainer):
         Ingest new data into the training process.
         """
         self.data_sets.ingest_data(data)
-        if self.data_sets.get_training_set_size() >= self.data_sets.min_samples:
-            self.training_status = TrainingStatus.DONE_GATHERING_DATA
+        if self.data_sets.get_training_set_size() >= self.data_sets.min_samples and self.training_status == TrainingStatus.GATHERING_DATA:
+            self.training_status = TrainingStatus.READY
+
+
+if __name__ == "__main__":
+    print("Training GAN")
+    p = train_gan()
+    p.wait()

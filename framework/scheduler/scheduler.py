@@ -64,11 +64,15 @@ class Scheduler:
             if self.trainer.get_status() == TrainingStatus.GATHERING_DATA:
                 logger.info("Waiting for data to be gathered before retraining")
                 continue
+            
+            if self.trainer.get_status() == TrainingStatus.TRAINING_IN_PROGRESS:
+                logger.info("Waiting for training to be done before retraining")
+                continue
             # Check if retraining is needed
             needs_retraining = self.detector.detect(new_data)
             logger.info(f"Detector result: {'Retraining needed' if needs_retraining else 'No retraining needed'}")
             
-            if needs_retraining:
+            if needs_retraining and self.trainer.get_status() == TrainingStatus.READY:
                 logger.info("Starting model retraining process")
                 self.trainer.train(new_data)
                 logger.info(f"Training status: {self.trainer.get_status()}")

@@ -42,7 +42,7 @@ class DummyDetector(Detector):
     """
     def detect(self, input_data: Any) -> bool:
         print(f"Skiping detection")
-        return False
+        return True
 
 class LstmDataAdapter(DataAdapter):
     """
@@ -71,7 +71,7 @@ def main():
     model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
     lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
     inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
-    trainer = LstmTrainerWithGanAugmentation(min_samples=1000)
+    trainer = LstmTrainerWithGanAugmentation(min_samples=1000, observation_size=30, sequence_length=90)
     detector = DummyDetector()
     scheduler = Scheduler(detector, inference, trainer)
     scheduler.run(datasource, inference_interval=0)
