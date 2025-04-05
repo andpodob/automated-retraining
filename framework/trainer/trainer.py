@@ -11,6 +11,8 @@ class TrainingStatus(Enum):
     """Enumeration of possible training status codes."""
     TRAINING_IN_PROGRESS = "TRAINING_IN_PROGRESS"
     TRAINING_DONE = "TRAINING_DONE"
+    GATHERING_DATA = "GATHERING_DATA"
+    DONE_GATHERING_DATA = "DONE_GATHERING_DATA"
 
 
 class Trainer(ABC):
@@ -18,7 +20,7 @@ class Trainer(ABC):
     Base class for implementing model training strategies.
     Concrete implementations should inherit from this class and implement the train method.
     """
-    
+
     @abstractmethod
     def train(self) -> None:
         """
@@ -35,3 +37,10 @@ class Trainer(ABC):
             TrainingStatus: Current status of the training process
         """
         pass 
+
+    @abstractmethod
+    def new_data(self, data: Any) -> None:
+        """
+        Ingest new data into the training process.
+        """
+        pass

@@ -11,6 +11,7 @@ from framework.inference.pytorch.pytorch_inference import PyTorchInference
 from framework.trainer.trainer import Trainer, TrainingStatus
 from framework.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
+from examples.gan.trainer.trainer import LstmTrainerWithGanAugmentation
 import random
 import torch
 import pandas as pd
@@ -21,7 +22,7 @@ class TestingSink(OutputSink):
     Output sink class for testing.
     """
     def receive(self, output: Any) -> None:
-        print(f"Output: {output}")
+        print(f"Output: <inference output>")
 
 
 class DummyTrainer(Trainer):
@@ -65,15 +66,15 @@ def main():
     # Get the absolute path to the data file
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file = os.path.join(current_dir, "data", "btcusd_1-min_data.csv")
-    datasource = CSVDataSource(batch_size=30, interval=1, file=data_file)
+    datasource = CSVDataSource(batch_size=30, interval=0, file=data_file)
     lstm = LSTMModel(input_dim=1, output_dim=15, layer_dim=3, hidden_dim=64, dropout_prob=0.2)
     model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
     lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
     inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
-    trainer = DummyTrainer()
+    trainer = LstmTrainerWithGanAugmentation(min_samples=1000)
     detector = DummyDetector()
     scheduler = Scheduler(detector, inference, trainer)
-    scheduler.run(datasource)
+    scheduler.run(datasource, inference_interval=0)
 
 
 if __name__ == "__main__":
