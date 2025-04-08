@@ -40,8 +40,11 @@ class DummyDetector(Detector):
     """
     Dummy detector class for testing.
     """
-    def detect(self, input_data: Any) -> bool:
-        print(f"Skiping detection")
+
+    def new_data(self, new_data: Any) -> None:
+        pass
+
+    def verdict(self) -> bool:
         return True
 
 class LstmDataAdapter(DataAdapter):
@@ -66,7 +69,7 @@ def main():
     # Get the absolute path to the data file
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file = os.path.join(current_dir, "data", "btcusd_1-min_data.csv")
-    datasource = CSVDataSource(batch_size=30, interval=0, file=data_file)
+    datasource = CSVDataSource(batch_size=9000, interval=0, file=data_file)
     lstm = LSTMModel(input_dim=1, output_dim=15, layer_dim=3, hidden_dim=64, dropout_prob=0.2)
     model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
     lstm.load_state_dict(model_checkpoint["lstm_state_dict"])

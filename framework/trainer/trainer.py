@@ -10,7 +10,8 @@ from enum import Enum
 class TrainingStatus(Enum):
     """Enumeration of possible training status codes."""
     TRAINING_IN_PROGRESS = "TRAINING_IN_PROGRESS"
-    TRAINING_DONE = "TRAINING_DONE"
+    TRAINING_COMPLETED = "TRAINING_COMPLETED"
+    TRAINING_FAILED = "TRAINING_FAILED"
     GATHERING_DATA = "GATHERING_DATA"
     READY = "READY"
 

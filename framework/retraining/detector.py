@@ -13,14 +13,21 @@ class Detector(ABC):
     """
     
     @abstractmethod
-    def detect(self, new_data: List[Any]) -> bool:
+    def new_data(self, new_data: Any) -> None:
         """
-        Detect if retraining is needed based on new data.
+        Adds data to the detector.
         
         Args:
             new_data: List of new data points to analyze
             
         Returns:
             bool: True if retraining is needed, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def verdict(self) -> bool:
+        """
+        Returns the verdict of the detector based on the data added to the detector.
         """
         pass

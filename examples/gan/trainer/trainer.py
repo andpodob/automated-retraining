@@ -4,6 +4,7 @@ Trainer workflow implementation that follows the framework's Trainer interface.
 import logging
 import os
 import torch
+import threading
 import random
 import subprocess
 import torch.nn as nn
@@ -99,7 +100,7 @@ def train_gan():
     --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
     --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
     --observation_size 30 \
-    --max_epoch 500 \
+    --max_epoch 10 \
     --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
     --random_seed 42 \
     --exp_name gan'.split()
@@ -195,6 +196,23 @@ class DataSets:
         return DataSet(self.validation_set, self.observation_size, self.sequence_length)
     
 
+class TrainingWorkflowThread(threading.Thread):
+    """
+    TrainingWorkflowThread is a class that contains the training workflow.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.gan_process = None
+        self.gan_status = None
+
+    def run(self):
+        self.gan_process = train_gan()
+        status = self.gan_process.wait()
+        if status == 0:
+            self.gan_status = True
+        else:
+            self.gan_status = False
+
 class LstmTrainerWithGanAugmentation(Trainer):
     """
     Trainer runs a training workflow that:
@@ -209,6 +227,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
         self.training_status = TrainingStatus.GATHERING_DATA
+        self.gan_process = None
         logger.info(f"Initialized GAN Trainer")
 
     def save_data_sets(self) -> None:
@@ -222,7 +241,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         torch.save(self.data_sets.get_training_set().data, os.path.join(root_dir, "training_set.pt"))
         torch.save(self.data_sets.get_validation_set().data, os.path.join(root_dir, "validation_set.pt"))
 
-    def train(self, input_data: Any) -> None:
+    def train(self) -> None:
         """
         Run training workflow.
         1. Save training and validation sets to disk so the training actual process can load it.
@@ -230,6 +249,8 @@ class LstmTrainerWithGanAugmentation(Trainer):
         3. Trigger Forecasting model training process.
         """
         self.save_data_sets()
+        self.training_workflow_thread = TrainingWorkflowThread()
+        self.training_workflow_thread.start()
         self.training_status = TrainingStatus.TRAINING_IN_PROGRESS
 
 
@@ -240,6 +261,12 @@ class LstmTrainerWithGanAugmentation(Trainer):
         Returns:
             TrainingStatus: Current status of the training process
         """
+        if self.training_status == TrainingStatus.TRAINING_IN_PROGRESS:
+            if not self.training_workflow_thread.is_alive():
+                if self.training_workflow_thread.gan_status:
+                    self.training_status = TrainingStatus.TRAINING_COMPLETED
+                else:
+                    self.training_status = TrainingStatus.TRAINING_FAILED
         return self.training_status
 
 

@@ -4,6 +4,8 @@ Scheduler class for coordinating model retraining workflow.
 import logging
 import time
 from typing import Any
+import threading
+import queue
 from retraining.detector import Detector
 from inference.inference import Inference
 from trainer.trainer import Trainer, TrainingStatus
@@ -16,6 +18,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+class RetrainingThread(threading.Thread):
+    def __init__(self, trainer: Trainer, detector: Detector, data_queue: queue.Queue):
+        super().__init__()
+        self.trainer = trainer
+        self.detector = detector
+        self.data_queue = data_queue
+
+    def run(self):
+        print("RetrainingThread started")
+        while True:
+            try:
+                while True:
+                    data = self.data_queue.get(block=False)
+                    self.trainer.new_data(data)
+                    self.detector.new_data(data)
+            except queue.Empty:
+                logger.debug("Read all data from queue")
+
+            if self.trainer.get_status() == TrainingStatus.TRAINING_IN_PROGRESS:
+                logger.info("Waiting for training to be done before retraining")
+                time.sleep(10)
+                continue
+
+            if self.detector.verdict() and self.trainer.get_status() in [TrainingStatus.READY, TrainingStatus.TRAINING_COMPLETED]:
+                logger.info("Retraining needed")
+                self.trainer.train()
+            else:
+                logger.info("No retraining needed")
+            time.sleep(10)
+
+
+class InferenceThread(threading.Thread):
+    def __init__(self, inference: Inference, data_queue: queue.Queue, inference_interval: int):
+        super().__init__()
+        self.inference = inference
+        self.data_queue = data_queue
+        self.inference_interval = inference_interval
+
+    def run(self):
+        while True:
+            data = self.data_queue.get()
+            if data is not None:
+                self.inference.infer(data)
+            time.sleep(self.inference_interval)
 
 class Scheduler:
     """
@@ -34,6 +81,8 @@ class Scheduler:
         self.detector = detector
         self.inference = inference
         self.trainer = trainer
+        self.trainer_data_queue = queue.Queue()
+        self.inference_data_queue = queue.Queue()
         logger.info("Scheduler initialized with detector, inference, and trainer components")
     
     def run(self, datasource: DataSource, inference_interval: int = 10, infer_when_retraining: bool = True) -> None:
@@ -43,36 +92,23 @@ class Scheduler:
         Args:
             new_data: List of new data points to analyze
         """
+        logger.info("Starting retraining and inference threads")
+        retraining_thread = RetrainingThread(self.trainer, self.detector, self.trainer_data_queue)
+        inference_thread = InferenceThread(self.inference, self.inference_data_queue, inference_interval)
+        retraining_thread.start()
+        inference_thread.start()
         while True:
-            # Wait before next iteration
-            if inference_interval > 0:
-                logger.info("Waiting for next iteration...")
-                time.sleep(inference_interval)
+            if not retraining_thread.is_alive() or not inference_thread.is_alive():
+                logger.info("Threads are not alive, exiting")
+                break
             datasource_status = datasource.get_status()
             logger.info(f"Data source status: {datasource_status}")
             if datasource_status == DataSourceStatus.NO_NEW_DATA:
                 logger.info("No new data available, skipping retraining")
+                time.sleep(1)
                 continue
             new_data = datasource.get_new_data()
-            # Perform inference
-            if infer_when_retraining or self.trainer.get_status() == TrainingStatus.TRAINING_DONE:
-                logger.info("Triggering inference")
-                self.inference.infer(new_data)
-            
-            # Ingest new data into the training process
-            self.trainer.new_data(new_data)
-            if self.trainer.get_status() == TrainingStatus.GATHERING_DATA:
-                logger.info("Waiting for data to be gathered before retraining")
-                continue
-            
-            if self.trainer.get_status() == TrainingStatus.TRAINING_IN_PROGRESS:
-                logger.info("Waiting for training to be done before retraining")
-                continue
-            # Check if retraining is needed
-            needs_retraining = self.detector.detect(new_data)
-            logger.info(f"Detector result: {'Retraining needed' if needs_retraining else 'No retraining needed'}")
-            
-            if needs_retraining and self.trainer.get_status() == TrainingStatus.READY:
-                logger.info("Starting model retraining process")
-                self.trainer.train(new_data)
-                logger.info(f"Training status: {self.trainer.get_status()}")
+            self.trainer_data_queue.put(new_data)
+            self.inference_data_queue.put(new_data)
+            # Wait before next iteration
+            time.sleep(1)
