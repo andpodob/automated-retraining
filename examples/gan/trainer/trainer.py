@@ -40,21 +40,20 @@ def remove_random_elements(arr, n):
   new_arr = [item for i, item in enumerate(arr) if i not in indices_to_remove]
   return new_arr
 
-def train_lstm(id, seed):
+def train_lstm():
     current_path = os.getcwd()
     script_path = os.path.dirname(os.path.abspath(__file__))
     cmd = f'python {os.path.join(script_path, "lstm", "train_lstm.py")} \
-    --exp_id {id} \
-    --training_set_size {TRAINING_SET_SIZE} \
-    --val_set_size {VAL_SET_SIZE} \
-    --test_set_size {TEST_SET_SIZE} \
-    --exp_name lstm_{id} \
-    --seq_len {SAMPLE_LEN} \
-    --prediction_size {PREDICTION_SIZE} \
-    --seed {seed} \
-    --logs_dir logs_{seed} \
-    --epochs {LSTM_EPOCHS * AUGMENTATION}'.split()
-    subprocess.run(cmd)
+    --exp_name lstm \
+    --seq_len 90 \
+    --val_set_ratio 0.2 \
+    --prediction_size 30 \
+    --seed 42 \
+    --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
+    --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
+    --logs_dir {os.path.join(current_path, ".training", "logs", "lstm")} \
+    --epochs 100'.split()
+    return subprocess.Popen(cmd)
 
 
 def train_gan():
@@ -102,7 +101,7 @@ def train_gan():
     --seq_len 90 \
     --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
     --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
-    --observation_size 30 \
+    --observation_size 60 \
     --max_epoch 10 \
     --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
     --random_seed 42 \
@@ -285,6 +284,9 @@ class LstmTrainerWithGanAugmentation(Trainer):
 
 
 if __name__ == "__main__":
-    print("Training GAN")
-    p = train_gan()
+    # print("Training GAN")
+    # p = train_gan()
+    # p.wait()
+    print("Training LSTM")
+    p = train_lstm()
     p.wait()
