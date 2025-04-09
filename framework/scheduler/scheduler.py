@@ -42,8 +42,16 @@ class RetrainingThread(threading.Thread):
                 time.sleep(10)
                 continue
 
-            if self.detector.verdict() and self.trainer.get_status() in [TrainingStatus.READY, TrainingStatus.TRAINING_COMPLETED]:
+            trainer_status = self.trainer.get_status()
+            if self.detector.verdict() and trainer_status == TrainingStatus.READY:
                 logger.info("Retraining needed")
+                self.trainer.train()
+            elif trainer_status in [TrainingStatus.TRAINING_IN_PROGRESS, TrainingStatus.GATHERING_DATA]:
+                logger.info("Trainer is not ready to retrain")
+            elif trainer_status == TrainingStatus.TRAINING_COMPLETED:
+                logger.info("Training completed, result has not been consumed yet")
+            elif trainer_status == TrainingStatus.TRAINING_FAILED:
+                logger.info("Training failed, retraining...")
                 self.trainer.train()
             else:
                 logger.info("No retraining needed")

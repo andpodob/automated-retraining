@@ -41,7 +41,9 @@ def remove_random_elements(arr, n):
   return new_arr
 
 def train_lstm(id, seed):
-    cmd = f'python lstm/train_lstm.py \
+    current_path = os.getcwd()
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    cmd = f'python {os.path.join(script_path, "lstm", "train_lstm.py")} \
     --exp_id {id} \
     --training_set_size {TRAINING_SET_SIZE} \
     --val_set_size {VAL_SET_SIZE} \
@@ -53,6 +55,7 @@ def train_lstm(id, seed):
     --logs_dir logs_{seed} \
     --epochs {LSTM_EPOCHS * AUGMENTATION}'.split()
     subprocess.run(cmd)
+
 
 def train_gan():
     current_path = os.getcwd()
@@ -104,7 +107,7 @@ def train_gan():
     --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
     --random_seed 42 \
     --exp_name gan'.split()
-    return subprocess.Popen(cmd)
+    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 class DataSet(Dataset):
     """
@@ -174,8 +177,6 @@ class DataSets:
         if validation_samples_to_remove > 0:
             self.validation_set = remove_random_elements(self.validation_set, validation_samples_to_remove)
 
-        print(f"Training set size: {len(self.training_set)}")
-        print(f"Validation set size: {len(self.validation_set)}")
 
     def get_training_set_size(self) -> int:
         """
@@ -213,6 +214,7 @@ class TrainingWorkflowThread(threading.Thread):
         else:
             self.gan_status = False
 
+
 class LstmTrainerWithGanAugmentation(Trainer):
     """
     Trainer runs a training workflow that:
@@ -220,14 +222,13 @@ class LstmTrainerWithGanAugmentation(Trainer):
     2. Trains GAN model
     3. Trains Forecasting model on augmented data.
     """
-    
+
     def __init__(self, min_samples: int, observation_size: int, sequence_length: int):
         """
         Initialize the trainer.
         """
+        super().__init__()
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
-        self.training_status = TrainingStatus.GATHERING_DATA
-        self.gan_process = None
         logger.info(f"Initialized GAN Trainer")
 
     def save_data_sets(self) -> None:
@@ -249,34 +250,38 @@ class LstmTrainerWithGanAugmentation(Trainer):
         3. Trigger Forecasting model training process.
         """
         self.save_data_sets()
+        super().set_status(TrainingStatus.TRAINING_IN_PROGRESS)
         self.training_workflow_thread = TrainingWorkflowThread()
         self.training_workflow_thread.start()
-        self.training_status = TrainingStatus.TRAINING_IN_PROGRESS
 
+    def update_status(self, current_status: TrainingStatus) -> None:
+        """
+        Get the current training status.
+        """
+        if current_status == TrainingStatus.TRAINING_IN_PROGRESS:
+            if not self.training_workflow_thread.is_alive():
+                if self.training_workflow_thread.gan_status:
+                    super().set_status(TrainingStatus.TRAINING_COMPLETED)
+                else:
+                    super().set_status(TrainingStatus.TRAINING_FAILED)
 
     def get_status(self) -> TrainingStatus:
         """
-        Get the current training status.
+        Get the current training status and update it if needed.
         
         Returns:
             TrainingStatus: Current status of the training process
         """
-        if self.training_status == TrainingStatus.TRAINING_IN_PROGRESS:
-            if not self.training_workflow_thread.is_alive():
-                if self.training_workflow_thread.gan_status:
-                    self.training_status = TrainingStatus.TRAINING_COMPLETED
-                else:
-                    self.training_status = TrainingStatus.TRAINING_FAILED
-        return self.training_status
-
+        self.update_status(super().get_status())
+        return super().get_status()
 
     def new_data(self, data: Any) -> None:
         """
         Ingest new data into the training process.
         """
         self.data_sets.ingest_data(data)
-        if self.data_sets.get_training_set_size() >= self.data_sets.min_samples and self.training_status == TrainingStatus.GATHERING_DATA:
-            self.training_status = TrainingStatus.READY
+        if self.data_sets.get_training_set_size() >= self.data_sets.min_samples and self.get_status() == TrainingStatus.GATHERING_DATA:
+            super().set_status(TrainingStatus.READY)
 
 
 if __name__ == "__main__":
