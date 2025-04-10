@@ -13,7 +13,7 @@ class ModelRepository(ABC):
     """
     
     @abstractmethod
-    def write(self, model: Any) -> None:
+    def write(self, model: Any, model_name: str, model_tag: str) -> None:
         """
         Save the model to the repository.
         
@@ -23,7 +23,7 @@ class ModelRepository(ABC):
         pass
     
     @abstractmethod
-    def read(self) -> Any:
+    def load(self, model_name: str, model_tag: str) -> Any:
         """
         Load the model from the repository.
         
@@ -33,7 +33,7 @@ class ModelRepository(ABC):
         pass
     
     @abstractmethod
-    def read_latest(self, model_tag: str) -> Any:
+    def load_latest(self, model_name: str) -> Any:
         """
         Load the latest version of a model with the specified tag from the repository.
         

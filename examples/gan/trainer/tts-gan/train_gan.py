@@ -38,7 +38,7 @@ from trainer import DataSet
 
 def main():
     args = cfg.parse_args()
-    
+
     if args.seed is not None:
         torch.manual_seed(args.random_seed)
         torch.cuda.manual_seed(args.random_seed)
@@ -197,6 +197,9 @@ def main_worker(gpu, args):
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
     
+    if args.discriminator_path:
+        os.makedirs(os.path.dirname(args.discriminator_path), exist_ok=True)
+        torch.save(dis_net.state_dict(), args.discriminator_path)
         
 def gen_plot(gen_net, epoch, class_name):
     """Create a pyplot plot and save to buffer."""

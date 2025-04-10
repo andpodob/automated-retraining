@@ -12,7 +12,6 @@ from framework.trainer.trainer import Trainer, TrainingStatus
 from framework.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
 from examples.gan.trainer.trainer import LstmTrainerWithGanAugmentation
-import random
 import torch
 import pandas as pd
 

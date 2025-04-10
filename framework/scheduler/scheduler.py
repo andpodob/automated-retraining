@@ -6,10 +6,10 @@ import time
 from typing import Any
 import threading
 import queue
-from retraining.detector import Detector
-from inference.inference import Inference
-from trainer.trainer import Trainer, TrainingStatus
-from data_source.data_source import DataSource, DataSourceStatus
+from ..retraining.detector import Detector
+from ..inference.inference import Inference
+from ..trainer.trainer import Trainer, TrainingStatus
+from ..data_source.data_source import DataSource, DataSourceStatus
 
 # Configure logging
 logging.basicConfig(

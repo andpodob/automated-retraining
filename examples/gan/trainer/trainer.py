@@ -5,6 +5,7 @@ import logging
 import os
 import torch
 import threading
+import datetime
 import random
 import subprocess
 import torch.nn as nn
@@ -13,6 +14,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from typing import Any, Optional
 from framework.trainer.trainer import Trainer, TrainingStatus
+from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
@@ -102,10 +104,12 @@ def train_gan():
     --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
     --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
     --observation_size 60 \
-    --max_epoch 10 \
+    --max_epoch 3 \
     --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
+    --discriminator_path {os.path.join(current_path, ".training", "gan", "discriminator.pth")} \
     --random_seed 42 \
     --exp_name gan'.split()
+    # return subprocess.Popen(cmd)
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 class DataSet(Dataset):
@@ -204,12 +208,17 @@ class TrainingWorkflowThread(threading.Thread):
         super().__init__(*args, **kwargs)
         self.gan_process = None
         self.gan_status = None
+        self.model_repository = PytorchModelRepository()
 
     def run(self):
         self.gan_process = train_gan()
         status = self.gan_process.wait()
         if status == 0:
             self.gan_status = True
+            discriminator_path = os.path.join(current_path, ".training", "gan", "discriminator.pth")
+            discriminator = torch.load(discriminator_path)
+            current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+            self.model_repository.write(discriminator, "discriminator", current_date)
         else:
             self.gan_status = False
 
@@ -230,6 +239,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
         logger.info(f"Initialized GAN Trainer")
 
+
     def save_data_sets(self) -> None:
         """
         Save training and validation sets to disk so the training actual process can load it.
@@ -240,6 +250,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
             os.makedirs(root_dir)
         torch.save(self.data_sets.get_training_set().data, os.path.join(root_dir, "training_set.pt"))
         torch.save(self.data_sets.get_validation_set().data, os.path.join(root_dir, "validation_set.pt"))
+
 
     def train(self) -> None:
         """
@@ -253,6 +264,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         self.training_workflow_thread = TrainingWorkflowThread()
         self.training_workflow_thread.start()
 
+
     def update_status(self, current_status: TrainingStatus) -> None:
         """
         Get the current training status.
@@ -264,6 +276,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
                 else:
                     super().set_status(TrainingStatus.TRAINING_FAILED)
 
+
     def get_status(self) -> TrainingStatus:
         """
         Get the current training status and update it if needed.
@@ -273,6 +286,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         self.update_status(super().get_status())
         return super().get_status()
+
 
     def new_data(self, data: Any) -> None:
         """
@@ -284,9 +298,9 @@ class LstmTrainerWithGanAugmentation(Trainer):
 
 
 if __name__ == "__main__":
-    # print("Training GAN")
-    # p = train_gan()
-    # p.wait()
-    print("Training LSTM")
-    p = train_lstm()
+    print("Training GAN")
+    p = train_gan()
     p.wait()
+    # print("Training LSTM")
+    # p = train_lstm()
+    # p.wait()

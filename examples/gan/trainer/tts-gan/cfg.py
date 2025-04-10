@@ -42,6 +42,8 @@ def parse_args():
                         help='directory for logs')
     parser.add_argument('--gpu', default=None, type=int,
                         help='GPU id to use.')
+    parser.add_argument('--discriminator_path', default=None, type=str,
+                        help='path to the discriminator')
     parser.add_argument('--multiprocessing-distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
