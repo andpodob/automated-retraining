@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import io
 import os
 import random
@@ -8,6 +9,8 @@ import PIL
 from matplotlib import pyplot as plt
 import numpy as np
 import torch
+
+from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 
 # Add parent directory to the system path to access utils.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -210,6 +213,11 @@ class Optimization:
                 'optimizer_state_dict': self.optimizer.state_dict(),
                 'path_helper': path_helper
             }, os.path.join(path_helper['ckpt_path'], 'checkpoint'))
+        #sdawdw
+        model_repository = PytorchModelRepository()
+        current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        model_repository.write(self.model.state_dict(), "lstm", current_date)
+
 
     def gen_plot(self, test_loader, epoch):
         N = 16

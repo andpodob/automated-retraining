@@ -162,7 +162,8 @@ def set_log_dir(root_dir, exp_name):
     path_dict = {}
     os.makedirs(root_dir, exist_ok=True)
     # set log path
-    exp_path = os.path.join(root_dir, exp_name)
+    current_date = datetime.now().strftime("%Y%m%d_%H%M")
+    exp_path = os.path.join(root_dir, f"{exp_name}_{current_date}")
     prefix = exp_path
     import shutil
     shutil.rmtree(prefix, ignore_errors=True)

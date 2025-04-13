@@ -2,7 +2,10 @@
 Example of using the framework to re-train a forecasting model with data augmented 
 by a GAN and GAN Discriminator used as a detector.
 """
+import argparse
 import os
+from examples.gan.detector.periodic_detector import PeriodicDetector
+from examples.gan.trainer.trainer import LstmTrainerWithGanAugmentation
 from lstm.model import LSTMModel
 from framework.scheduler.scheduler import Scheduler
 from framework.retraining.detector import Detector
@@ -11,7 +14,6 @@ from framework.inference.pytorch.pytorch_inference import PyTorchInference
 from framework.trainer.trainer import Trainer, TrainingStatus
 from framework.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
-from examples.gan.trainer.trainer import LstmTrainerWithGanAugmentation
 import torch
 import pandas as pd
 
@@ -67,6 +69,10 @@ class LstmDataAdapter(DataAdapter):
 def main():
     """Main entry point of the script."""
     # Get the absolute path to the data file
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--exp_name', default=None, type=str,
+                        help='Name of experiment')
+    args = parser.parse_args()
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file = os.path.join(current_dir, "data", "btcusd_1-min_data.csv")
     datasource = CSVDataSource(batch_size=9000, interval=0, file=data_file)
@@ -74,10 +80,10 @@ def main():
     model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
     lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
     inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
-    trainer = LstmTrainerWithGanAugmentation(min_samples=1000, observation_size=30, sequence_length=90)
-    detector = DummyDetector()
+    trainer = LstmTrainerWithGanAugmentation(exp_name=args.exp_name, min_samples=1000, observation_size=30, sequence_length=90)
+    detector = PeriodicDetector(100)
     scheduler = Scheduler(detector, inference, trainer)
-    scheduler.run(datasource, inference_interval=0)
+    scheduler.run(datasource, inference_interval=0, test_mode=True)
 
 
 if __name__ == "__main__":

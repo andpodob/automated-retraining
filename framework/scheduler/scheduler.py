@@ -43,8 +43,10 @@ class RetrainingThread(threading.Thread):
                 continue
 
             trainer_status = self.trainer.get_status()
+            print(self.detector.verdict())
             if self.detector.verdict() and trainer_status == TrainingStatus.READY:
                 logger.info("Retraining needed")
+                self.detector.reset()
                 self.trainer.train()
             elif trainer_status in [TrainingStatus.TRAINING_IN_PROGRESS, TrainingStatus.GATHERING_DATA]:
                 logger.info("Trainer is not ready to retrain")
@@ -93,10 +95,12 @@ class Scheduler:
         self.inference_data_queue = queue.Queue()
         logger.info("Scheduler initialized with detector, inference, and trainer components")
     
-    def run(self, datasource: DataSource, inference_interval: int = 10, infer_when_retraining: bool = True) -> None:
+    def run(self, datasource: DataSource, inference_interval: int = 10, test_mode: bool = False) -> None:
         """
         Run the retraining workflow.
         
+        If test_mode = True, new data from datasource will be consumed only if trainer is ready.
+
         Args:
             new_data: List of new data points to analyze
         """
@@ -109,14 +113,19 @@ class Scheduler:
             if not retraining_thread.is_alive() or not inference_thread.is_alive():
                 logger.info("Threads are not alive, exiting")
                 break
-            datasource_status = datasource.get_status()
-            logger.debug(f"Data source status: {datasource_status}")
-            if datasource_status == DataSourceStatus.NO_NEW_DATA:
-                logger.info("No new data available, skipping retraining")
-                time.sleep(1)
-                continue
-            new_data = datasource.get_new_data()
-            self.trainer_data_queue.put(new_data)
-            self.inference_data_queue.put(new_data)
+            trainer_status = self.trainer.get_status()
+            if trainer_status == TrainingStatus.TRAINING_COMPLETED:
+                logger.info("Re-training completed successfuly")
+                self.trainer.consume_status()
+            if (not test_mode) or (self.trainer.get_status() != TrainingStatus.TRAINING_IN_PROGRESS):
+                datasource_status = datasource.get_status()
+                logger.info(f"Data source status: {datasource_status}")
+                if datasource_status == DataSourceStatus.NO_NEW_DATA:
+                    logger.info("No new data available, skipping retraining")
+                    time.sleep(1)
+                    continue
+                new_data = datasource.get_new_data()
+                self.trainer_data_queue.put(new_data)
+                self.inference_data_queue.put(new_data)
             # Wait before next iteration
             time.sleep(1)

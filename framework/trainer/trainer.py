@@ -42,6 +42,9 @@ class Trainer(ABC):
         """
         pass
 
+    def consume_status(self):
+        self.set_status(TrainingStatus.READY)
+
     def get_status(self) -> TrainingStatus:
         """
         Get the current training status.

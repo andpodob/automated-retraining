@@ -46,11 +46,11 @@ def remove_random_elements(arr, n):
   new_arr = [item for i, item in enumerate(arr) if i not in indices_to_remove]
   return new_arr
 
-def train_lstm():
+def train_lstm(exp_name: str):
     current_path = os.getcwd()
     script_path = os.path.dirname(os.path.abspath(__file__))
     cmd = f'python {os.path.join(script_path, "lstm", "train_lstm.py")} \
-    --exp_name lstm \
+    --exp_name {exp_name} \
     --seq_len 90 \
     --val_set_ratio 0.2 \
     --prediction_size 30 \
@@ -62,13 +62,12 @@ def train_lstm():
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def train_gan():
+def train_gan(exp_name: str):
     current_path = os.getcwd()
     script_path = os.path.dirname(os.path.abspath(__file__))
     cmd = f'python {os.path.join(script_path, "tts_gan", "train_gan.py")} \
     -gen_bs 16 \
     -dis_bs 16 \
-    --load_path {os.path.join(current_path, ".training", "logs", "gan", "Model", "checkpoint")} \
     --rank 0 \
     --world-size 1 \
     --bottom_width 8 \
@@ -105,15 +104,13 @@ def train_gan():
     --ema 0.9999 \
     --diff_aug translation,cutout,color \
     --seq_len 90 \
-    --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
-    --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
+    --training_set_path {os.path.join(current_path, ".training", exp_name, "training_set.pt")} \
+    --test_set_path {os.path.join(current_path, ".training", exp_name, "validation_set.pt")} \
     --observation_size 60 \
-    --max_epoch 3 \
-    --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
-    --discriminator_path {os.path.join(current_path, ".training", "gan", "discriminator.pth")} \
-    --generator_path {os.path.join(current_path, ".training", "gan", "generator.pth")} \
+    --max_epoch 500 \
+    --logs_dir {os.path.join(current_path, ".training", "logs")}  \
     --random_seed 42 \
-    --exp_name gan'.split()
+    --exp_name {exp_name}'.split()
     # return subprocess.Popen(cmd)
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -210,11 +207,12 @@ class TrainingWorkflowThread(threading.Thread):
     """
     GanTrainingWorkflowThread is a class that contains the training workflow.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, exp_name: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gan_process = None
         self.gan_status = None
         self.lstm_status = None
+        self.exp_name = exp_name
         self.model_repository = PytorchModelRepository()
 
 
@@ -223,7 +221,7 @@ class TrainingWorkflowThread(threading.Thread):
         Save augmented data set to disk so the training actual process can load it.
         """
         current_path = os.getcwd()
-        root_dir = os.path.join(current_path, ".training")
+        root_dir = os.path.join(current_path, ".training", self.exp_name)
         raw_training_data = torch.load(os.path.join(root_dir, "training_set.pt"))
         generator = Generator(seq_len=90) 
         generator.cuda()
@@ -241,14 +239,14 @@ class TrainingWorkflowThread(threading.Thread):
 
 
     def run(self):
-        self.gan_process = train_gan()
+        self.gan_process = train_gan(self.exp_name)
         status = self.gan_process.wait()
         if status != 0:
             self.gan_status = False
             return
         self.gan_status = True
         self.save_augmented_data_set(2)
-        self.lstm_process = train_lstm()
+        self.lstm_process = train_lstm(self.exp_name)
         status = self.lstm_process.wait()
         if status != 0:
             self.lstm_status = False
@@ -263,13 +261,14 @@ class LstmTrainerWithGanAugmentation(Trainer):
     3. Trains Forecasting model on augmented data.
     """
 
-    def __init__(self, min_samples: int, observation_size: int, sequence_length: int):
+    def __init__(self, exp_name: str, min_samples: int, observation_size: int, sequence_length: int):
         """
         Initialize the trainer.
         """
         super().__init__()
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
         self.model_repository = PytorchModelRepository()
+        self.exp_name = exp_name
         logger.info(f"Initialized GAN Trainer")
 
 
@@ -278,7 +277,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         Save training and validation sets to disk so the training actual process can load it.
         """
         current_path = os.getcwd()
-        root_dir = os.path.join(current_path, ".training")
+        root_dir = os.path.join(current_path, ".training", self.exp_name)
         if not os.path.exists(root_dir):
             os.makedirs(root_dir)
         torch.save(self.data_sets.get_training_set().data, os.path.join(root_dir, "training_set.pt"))
@@ -294,7 +293,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         self.save_data_sets()
         super().set_status(TrainingStatus.TRAINING_IN_PROGRESS)
-        self.training_workflow_thread = TrainingWorkflowThread()
+        self.training_workflow_thread = TrainingWorkflowThread(exp_name=self.exp_name)
         self.training_workflow_thread.start()
 
 
@@ -332,7 +331,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
 
 if __name__ == "__main__":
     print("Training GAN")
-    p = train_gan()
+    p = train_gan("test")
     p.wait()
     # print("Training LSTM")
     # p = train_lstm()

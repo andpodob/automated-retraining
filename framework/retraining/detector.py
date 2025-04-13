@@ -31,3 +31,10 @@ class Detector(ABC):
         Returns the verdict of the detector based on the data added to the detector.
         """
         pass
+
+    @abstractmethod
+    def reset(self) -> None:
+        """
+        Resets the state of detector.
+        """
+        pass
