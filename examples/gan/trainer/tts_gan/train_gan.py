@@ -5,6 +5,8 @@ from __future__ import print_function
 import cfg
 import sys
 import os
+import datetime
+from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 
 # Add parent directory to the system path to access utils.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -195,13 +197,10 @@ def main_worker(gpu, args):
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
     
-    if args.discriminator_path:
-        os.makedirs(os.path.dirname(args.discriminator_path), exist_ok=True)
-        torch.save(dis_net.state_dict(), args.discriminator_path)
-        
-    if args.generator_path:
-        os.makedirs(os.path.dirname(args.generator_path), exist_ok=True)
-        torch.save(gen_net.state_dict(), args.generator_path)
+    model_repository = PytorchModelRepository()
+    current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    model_repository.write(dis_net.state_dict(), "discriminator", current_date)
+    model_repository.write(gen_net.state_dict(), "generator", current_date)
         
 def gen_plot(gen_net, epoch, class_name):
     """Create a pyplot plot and save to buffer."""

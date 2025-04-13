@@ -230,11 +230,13 @@ class TrainingWorkflowThread(threading.Thread):
         generator.load_state_dict(self.model_repository.load_latest("generator", device="cuda"))
         augmented_data = []
         augmented_samples_count = len(raw_training_data) * augmentation_factor
+        logger.info(f"Generating augmented dataset")
         for i in range(augmented_samples_count):
             fake_noise = torch.FloatTensor(np.random.normal(0, 1, (1, 100))).to('cuda')
             fake_sigs = generator(fake_noise.to(torch.float32)).to('cpu').detach().numpy()
             augmented_data.append(fake_sigs.squeeze())
         augmented_data = raw_training_data + augmented_data
+        logger.info(f"Saving augmented dataset of size: {len(augmented_data)}")
         torch.save(augmented_data, os.path.join(root_dir, "augmented_training_set.pt"))
 
 
@@ -244,21 +246,13 @@ class TrainingWorkflowThread(threading.Thread):
         if status != 0:
             self.gan_status = False
             return
-
         self.gan_status = True
-        current_path = os.getcwd()
-        discriminator_path = os.path.join(current_path, ".training", "gan", "discriminator.pth")
-        discriminator = torch.load(discriminator_path)
-        generator_path = os.path.join(current_path, ".training", "gan", "generator.pth")
-        generator = torch.load(generator_path)
-        current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-        self.model_repository.write(discriminator, "discriminator", current_date)
-        self.model_repository.write(generator, "generator", current_date)
         self.save_augmented_data_set(2)
         self.lstm_process = train_lstm()
         status = self.lstm_process.wait()
         if status != 0:
             self.lstm_status = False
+        self.lstm_status = True
 
 
 class LstmTrainerWithGanAugmentation(Trainer):
