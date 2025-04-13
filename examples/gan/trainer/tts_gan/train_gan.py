@@ -89,7 +89,7 @@ def main_worker(gpu, args):
     # epoch number for dis_net
     args.max_epoch = args.max_epoch * args.n_critic
     
-    train_set = DataSet(torch.load(args.training_set_path), args.observation_size, args.seq_len)
+    train_set = DataSet(torch.load(args.training_set_path))
     train_loader = data.DataLoader(train_set,  batch_size=args.batch_size, num_workers=args.num_workers, shuffle = True)
     
     print(len(train_loader))
@@ -186,20 +186,22 @@ def main_worker(gpu, args):
         }, args.path_helper['ckpt_path'], filename="checkpoint")
         if epoch % 10 == 0:
             conv = convergence(args.training_set_path, 
-                           args.seq_len,
-                           args.observation_size, 
+                           args.seq_len, 
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
             writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
         del avg_gen_net
     conv = convergence(args.training_set_path, 
                            args.seq_len, 
-                           args.observation_size,
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
     
     if args.discriminator_path:
         os.makedirs(os.path.dirname(args.discriminator_path), exist_ok=True)
         torch.save(dis_net.state_dict(), args.discriminator_path)
+        
+    if args.generator_path:
+        os.makedirs(os.path.dirname(args.generator_path), exist_ok=True)
+        torch.save(gen_net.state_dict(), args.generator_path)
         
 def gen_plot(gen_net, epoch, class_name):
     """Create a pyplot plot and save to buffer."""

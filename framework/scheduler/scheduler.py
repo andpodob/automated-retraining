@@ -110,7 +110,7 @@ class Scheduler:
                 logger.info("Threads are not alive, exiting")
                 break
             datasource_status = datasource.get_status()
-            logger.info(f"Data source status: {datasource_status}")
+            logger.debug(f"Data source status: {datasource_status}")
             if datasource_status == DataSourceStatus.NO_NEW_DATA:
                 logger.info("No new data available, skipping retraining")
                 time.sleep(1)

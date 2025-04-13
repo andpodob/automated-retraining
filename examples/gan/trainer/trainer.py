@@ -3,6 +3,7 @@ Trainer workflow implementation that follows the framework's Trainer interface.
 """
 import logging
 import os
+import sys
 import torch
 import threading
 import datetime
@@ -17,6 +18,9 @@ from framework.trainer.trainer import Trainer, TrainingStatus
 from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+from tts_gan.gan_models import Generator, Discriminator
 
 # Configure logging
 logging.basicConfig(
@@ -51,17 +55,17 @@ def train_lstm():
     --val_set_ratio 0.2 \
     --prediction_size 30 \
     --seed 42 \
-    --training_set_path {os.path.join(current_path, ".training", "training_set.pt")} \
+    --training_set_path {os.path.join(current_path, ".training", "augmented_training_set.pt")} \
     --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
     --logs_dir {os.path.join(current_path, ".training", "logs", "lstm")} \
     --epochs 100'.split()
-    return subprocess.Popen(cmd)
+    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def train_gan():
     current_path = os.getcwd()
     script_path = os.path.dirname(os.path.abspath(__file__))
-    cmd = f'python {os.path.join(script_path, "tts-gan", "train_gan.py")} \
+    cmd = f'python {os.path.join(script_path, "tts_gan", "train_gan.py")} \
     -gen_bs 16 \
     -dis_bs 16 \
     --load_path {os.path.join(current_path, ".training", "logs", "gan", "Model", "checkpoint")} \
@@ -107,29 +111,26 @@ def train_gan():
     --max_epoch 3 \
     --logs_dir {os.path.join(current_path, ".training", "logs", "gan")}  \
     --discriminator_path {os.path.join(current_path, ".training", "gan", "discriminator.pth")} \
+    --generator_path {os.path.join(current_path, ".training", "gan", "generator.pth")} \
     --random_seed 42 \
     --exp_name gan'.split()
     # return subprocess.Popen(cmd)
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+
 class DataSet(Dataset):
     """
     DataSet is a class that contains the data for the training workflow.
     """
-    def __init__(self, data: Any, observation_size: int, seq_len: int):
-        print(f"Initializing DataSet with observation size {observation_size} and sequence length {seq_len}")
+    def __init__(self, data: Any):
+        print(f"Initializing DataSet with {len(data)} samples")
         self.data = data
-        self.observation_size = observation_size
-        self.seq_len = seq_len
 
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
-        X = self.data[idx].reshape(-1, 1)
-        transformer = MinMaxScaler().fit(X[:self.observation_size])
-        transformed = transformer.transform(X)
-        return transformed[:self.seq_len].reshape(1, 1, -1), 1.0
+        return self.data[idx].reshape(1,1,-1), 1.0
 
 
 class DataSets:
@@ -165,8 +166,13 @@ class DataSets:
         df = df.set_index('Timestamp')
         df = df.dropna()
         df = df.drop(columns=['Volume', 'Open', 'High', 'Low'])
+        df = df.astype('float32')
         samples = np.array_split(df['Close'].values, len(df)/self.sequence_length)
         for sample in samples:
+            X = sample.reshape(-1, 1)
+            transformer = MinMaxScaler().fit(X[:self.observation_size])
+            transformed = transformer.transform(X)
+            sample = transformed[:self.sequence_length].squeeze()
             if random.random() < self.split_ratio:
                 self.validation_set.append(sample)
             else:
@@ -191,36 +197,68 @@ class DataSets:
         """
         Returns the training set.
         """
-        return DataSet(self.training_set, self.observation_size, self.sequence_length)
+        return DataSet(self.training_set)
     
     def get_validation_set(self) -> Any:
         """
         Returns the validation set.
         """
-        return DataSet(self.validation_set, self.observation_size, self.sequence_length)
+        return DataSet(self.validation_set)
     
 
 class TrainingWorkflowThread(threading.Thread):
     """
-    TrainingWorkflowThread is a class that contains the training workflow.
+    GanTrainingWorkflowThread is a class that contains the training workflow.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gan_process = None
         self.gan_status = None
+        self.lstm_status = None
         self.model_repository = PytorchModelRepository()
+
+
+    def save_augmented_data_set(self, augmentation_factor: int) -> None:
+        """
+        Save augmented data set to disk so the training actual process can load it.
+        """
+        current_path = os.getcwd()
+        root_dir = os.path.join(current_path, ".training")
+        raw_training_data = torch.load(os.path.join(root_dir, "training_set.pt"))
+        generator = Generator(seq_len=90) 
+        generator.cuda()
+        generator.load_state_dict(self.model_repository.load_latest("generator", device="cuda"))
+        augmented_data = []
+        augmented_samples_count = len(raw_training_data) * augmentation_factor
+        for i in range(augmented_samples_count):
+            fake_noise = torch.FloatTensor(np.random.normal(0, 1, (1, 100))).to('cuda')
+            fake_sigs = generator(fake_noise.to(torch.float32)).to('cpu').detach().numpy()
+            augmented_data.append(fake_sigs.squeeze())
+        augmented_data = raw_training_data + augmented_data
+        torch.save(augmented_data, os.path.join(root_dir, "augmented_training_set.pt"))
+
 
     def run(self):
         self.gan_process = train_gan()
         status = self.gan_process.wait()
-        if status == 0:
-            self.gan_status = True
-            discriminator_path = os.path.join(current_path, ".training", "gan", "discriminator.pth")
-            discriminator = torch.load(discriminator_path)
-            current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-            self.model_repository.write(discriminator, "discriminator", current_date)
-        else:
+        if status != 0:
             self.gan_status = False
+            return
+
+        self.gan_status = True
+        current_path = os.getcwd()
+        discriminator_path = os.path.join(current_path, ".training", "gan", "discriminator.pth")
+        discriminator = torch.load(discriminator_path)
+        generator_path = os.path.join(current_path, ".training", "gan", "generator.pth")
+        generator = torch.load(generator_path)
+        current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        self.model_repository.write(discriminator, "discriminator", current_date)
+        self.model_repository.write(generator, "generator", current_date)
+        self.save_augmented_data_set(2)
+        self.lstm_process = train_lstm()
+        status = self.lstm_process.wait()
+        if status != 0:
+            self.lstm_status = False
 
 
 class LstmTrainerWithGanAugmentation(Trainer):
@@ -237,6 +275,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         super().__init__()
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
+        self.model_repository = PytorchModelRepository()
         logger.info(f"Initialized GAN Trainer")
 
 
@@ -250,7 +289,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
             os.makedirs(root_dir)
         torch.save(self.data_sets.get_training_set().data, os.path.join(root_dir, "training_set.pt"))
         torch.save(self.data_sets.get_validation_set().data, os.path.join(root_dir, "validation_set.pt"))
-
+        
 
     def train(self) -> None:
         """
@@ -271,7 +310,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         if current_status == TrainingStatus.TRAINING_IN_PROGRESS:
             if not self.training_workflow_thread.is_alive():
-                if self.training_workflow_thread.gan_status:
+                if self.training_workflow_thread.gan_status and self.training_workflow_thread.lstm_status:
                     super().set_status(TrainingStatus.TRAINING_COMPLETED)
                 else:
                     super().set_status(TrainingStatus.TRAINING_FAILED)

@@ -21,7 +21,8 @@ class TestingSink(OutputSink):
     Output sink class for testing.
     """
     def receive(self, output: Any) -> None:
-        print(f"Output: <inference output>")
+        pass
+        # print(f"Output: <inference output>")
 
 
 class DummyTrainer(Trainer):

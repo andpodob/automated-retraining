@@ -29,7 +29,6 @@ _WEIGHT_DECAY = 1e-7
 def main():
     num_cores = os.cpu_count() 
     torch.set_num_threads(num_cores) 
-    torch.set_default_dtype(torch.float64)
     parser = argparse.ArgumentParser()
     parser.add_argument('--exp_id', default=None, type=int,
                     help='experiment id')
@@ -86,11 +85,11 @@ def main():
         path_helper = set_log_dir(args.logs_dir, args.exp_name)
         writer = SummaryWriter(path_helper['log_path'])
 
-    train_set, val_set = torch.utils.data.random_split(DataSet(torch.load(args.training_set_path), args.seq_len - args.prediction_size, args.seq_len), [1 - args.val_set_ratio, args.val_set_ratio]) 
+    train_set, val_set = torch.utils.data.random_split(DataSet(torch.load(args.training_set_path)), [1 - args.val_set_ratio, args.val_set_ratio]) 
     train_loader = torch.utils.data.DataLoader(train_set,  batch_size=16, num_workers=8, shuffle = True)
     val_loader = torch.utils.data.DataLoader(val_set, batch_size=16, num_workers=8, shuffle=True)
 
-    test_set = DataSet(torch.load(args.test_set_path), args.seq_len - args.prediction_size, args.seq_len)
+    test_set = DataSet(torch.load(args.test_set_path))
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=16, num_workers=8, shuffle=True)
 
     writer_dict = {

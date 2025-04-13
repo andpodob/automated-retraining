@@ -66,7 +66,7 @@ class CSVDataSource(DataSource):
         batch = self.data.iloc[self.current_position:end_position].copy()
             
         if not batch.empty:
-            logger.info(f"Returning batch of {len(batch)} records (position {self.current_position} to {end_position})")
+            logger.debug(f"Returning batch of {len(batch)} records (position {self.current_position} to {end_position})")
             self.current_position = end_position
             if self.current_position >= self.total_rows:
                 logger.info("Reached end of data")

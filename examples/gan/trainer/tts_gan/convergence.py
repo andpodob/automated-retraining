@@ -55,8 +55,8 @@ def prepare_signals_set(data):
         signals.append(scaler.transform(signal).reshape(1, -1))
     return signals
 
-def convergence(training_set_path, seq_len, observation_size, checkpoint_file, N=100, M=20):
-    real_data = DataSet(torch.load(training_set_path), observation_size, seq_len)
+def convergence(training_set_path, seq_len, checkpoint_file, N=100, M=20):
+    real_data = DataSet(torch.load(training_set_path))
     real_signals = prepare_signals_set(real_data)[:N]
     checkpoint = torch.load(checkpoint_file, map_location='cpu')
     gen_net = Generator(seq_len=seq_len)

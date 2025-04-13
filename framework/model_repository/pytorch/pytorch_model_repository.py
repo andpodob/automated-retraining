@@ -26,16 +26,16 @@ class PytorchModelRepository(ModelRepository):
         os.symlink(model_file_path, latest_path)
 
     
-    def load(self, model_name: str, model_tag: str) -> Any:
+    def load(self, model_name: str, model_tag: str, device: str = "cpu") -> Any:
         model_name_with_tag = f"{model_name}_{model_tag}"
         model_path = os.path.join(self.root_dir, model_name_with_tag)
         model_path = os.path.join(model_path, "model.pt")
-        return torch.load(model_path)
+        return torch.load(model_path, map_location=torch.device(device))
 
 
-    def load_latest(self, model_name: str) -> Any:
+    def load_latest(self, model_name: str, device: str = "cpu") -> Any:
         model_path = os.path.join(self.root_dir, model_name)
         latest_path = os.path.join(model_path, "latest.pt")
         if not os.path.exists(latest_path):
             raise FileNotFoundError(f"Latest model for {model_name} not found at {latest_path}")
-        return torch.load(latest_path)
+        return torch.load(latest_path, map_location=torch.device(device))

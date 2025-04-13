@@ -44,6 +44,8 @@ def parse_args():
                         help='GPU id to use.')
     parser.add_argument('--discriminator_path', default=None, type=str,
                         help='path to the discriminator')
+    parser.add_argument('--generator_path', default=None, type=str,
+                        help='path to the generator')
     parser.add_argument('--multiprocessing-distributed', action='store_true',
                     help='Use multi-processing distributed training to launch '
                          'N processes per node, which has N GPUs. This is the '
