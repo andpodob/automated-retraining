@@ -3,7 +3,7 @@ Detectors that triggers re-training on periodic basis.
 """
 import numpy as np
 
-from framework.retraining.detector import Detector
+from auto_retraining.retraining.detector import Detector
 
 
 class PeriodicDetector(Detector):

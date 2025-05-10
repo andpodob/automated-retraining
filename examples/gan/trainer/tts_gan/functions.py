@@ -14,9 +14,6 @@ import torch
 import torch.nn as nn
 from imageio import imsave
 import sys
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 from utils import make_grid, save_image
 from tqdm import tqdm
 import cv2

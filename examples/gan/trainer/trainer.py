@@ -3,7 +3,6 @@ Trainer workflow implementation that follows the framework's Trainer interface.
 """
 import logging
 import os
-import sys
 import torch
 import threading
 import datetime
@@ -14,12 +13,12 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from typing import Any, Optional
-from framework.trainer.trainer import Trainer, TrainingStatus
-from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
+from auto_retraining.trainer.trainer import Trainer, TrainingStatus
+from auto_retraining.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from tts_gan.gan_models import Generator, Discriminator
 
 # Configure logging
@@ -60,7 +59,6 @@ def train_lstm(exp_name: str):
     --logs_dir {os.path.join(current_path, ".training", "logs", "lstm")} \
     --epochs 100'.split()
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
 
 def train_gan(exp_name: str):
     current_path = os.getcwd()
@@ -111,8 +109,8 @@ def train_gan(exp_name: str):
     --logs_dir {os.path.join(current_path, ".training", "logs")}  \
     --random_seed 42 \
     --exp_name {exp_name}'.split()
-    # return subprocess.Popen(cmd)
-    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return subprocess.Popen(cmd)
+    # return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 class DataSet(Dataset):

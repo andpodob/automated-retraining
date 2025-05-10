@@ -6,12 +6,8 @@ import cfg
 import sys
 import os
 import datetime
-from framework.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
+from auto_retraining.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 
-# Add parent directory to the system path to access utils.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 from convergence import convergence
 from gan_models import * 

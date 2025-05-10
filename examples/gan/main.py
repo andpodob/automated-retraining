@@ -4,15 +4,15 @@ by a GAN and GAN Discriminator used as a detector.
 """
 import argparse
 import os
-from examples.gan.detector.periodic_detector import PeriodicDetector
-from examples.gan.trainer.trainer import LstmTrainerWithGanAugmentation
+from detector.periodic_detector import PeriodicDetector
+from trainer.trainer import LstmTrainerWithGanAugmentation
 from lstm.model import LSTMModel
-from framework.scheduler.scheduler import Scheduler
-from framework.retraining.detector import Detector
-from framework.inference.inference import Inference, DataAdapter, OutputSink
-from framework.inference.pytorch.pytorch_inference import PyTorchInference
-from framework.trainer.trainer import Trainer, TrainingStatus
-from framework.data_source.csv.csv_datasource import CSVDataSource
+from auto_retraining.scheduler.scheduler import Scheduler
+from auto_retraining.retraining.detector import Detector
+from auto_retraining.inference.inference import Inference, DataAdapter, OutputSink
+from auto_retraining.inference.pytorch.pytorch_inference import PyTorchInference
+from auto_retraining.trainer.trainer import Trainer, TrainingStatus
+from auto_retraining.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
 import torch
 import pandas as pd

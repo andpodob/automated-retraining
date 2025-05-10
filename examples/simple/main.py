@@ -2,11 +2,11 @@
 Simple main script demonstrating basic functionality.
 """
 import os
-from framework.scheduler.scheduler import Scheduler
-from framework.retraining.detector import Detector
-from framework.inference.inference import Inference
-from framework.trainer.trainer import Trainer, TrainingStatus
-from framework.data_source.csv.csv_datasource import CSVDataSource
+from auto_retraining.scheduler.scheduler import Scheduler
+from auto_retraining.retraining.detector import Detector
+from auto_retraining.inference.inference import Inference
+from auto_retraining.trainer.trainer import Trainer, TrainingStatus
+from auto_retraining.data_source.csv.csv_datasource import CSVDataSource
 from typing import Any
 import random
 
