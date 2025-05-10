@@ -1,5 +1,5 @@
 import torch
-from framework.inference.inference import Inference, DataAdapter, OutputSink
+from auto_retraining.inference.inference import Inference, DataAdapter, OutputSink
 from typing import Any
 
 class PyTorchInference(Inference):
