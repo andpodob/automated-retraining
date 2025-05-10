@@ -7,10 +7,6 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
 from gan_models import Generator
-# Add parent directory to the system path to access trainer.py
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 from trainer import DataSet
 

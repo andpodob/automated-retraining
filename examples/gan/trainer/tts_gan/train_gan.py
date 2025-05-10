@@ -2,18 +2,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import cfg
 import sys
 import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+import cfg
+import os
 import datetime
-from auto_retraining.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
-
-
-from convergence import convergence
-from gan_models import * 
-from functions import train, save_samples, LinearLrDecay, load_params, copy_params, cur_stages
-from utils import set_log_dir, save_checkpoint, create_logger
-
 import torch
 import torch.multiprocessing as mp
 import torch.distributed as dist
@@ -29,8 +26,13 @@ import random
 import matplotlib.pyplot as plt
 import io
 import PIL.Image
-from torchvision.transforms import ToTensor
 
+from auto_retraining.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
+from utils import set_log_dir, save_checkpoint, create_logger
+from convergence import convergence
+from gan_models import * 
+from functions import train, save_samples, LinearLrDecay, load_params, copy_params, cur_stages
+from torchvision.transforms import ToTensor
 from trainer import DataSet
 
 
@@ -193,7 +195,7 @@ def main_worker(gpu, args):
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
     
-    model_repository = PytorchModelRepository()
+    model_repository = PytorchModelRepository(experiment_name=args.exp_name)
     current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     model_repository.write(dis_net.state_dict(), "discriminator", current_date)
     model_repository.write(gen_net.state_dict(), "generator", current_date)

@@ -30,7 +30,7 @@ class RetrainingThread(threading.Thread):
         print("RetrainingThread started")
         while True:
             try:
-                while True:
+                while not self.detector.verdict():
                     data = self.data_queue.get(block=False)
                     self.trainer.new_data(data)
                     self.detector.new_data(data)
@@ -43,7 +43,6 @@ class RetrainingThread(threading.Thread):
                 continue
 
             trainer_status = self.trainer.get_status()
-            print(self.detector.verdict())
             if self.detector.verdict() and trainer_status == TrainingStatus.READY:
                 logger.info("Retraining needed")
                 self.detector.reset()

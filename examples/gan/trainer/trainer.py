@@ -54,10 +54,11 @@ def train_lstm(exp_name: str):
     --val_set_ratio 0.2 \
     --prediction_size 30 \
     --seed 42 \
-    --training_set_path {os.path.join(current_path, ".training", "augmented_training_set.pt")} \
-    --test_set_path {os.path.join(current_path, ".training", "validation_set.pt")} \
-    --logs_dir {os.path.join(current_path, ".training", "logs", "lstm")} \
+    --training_set_path {os.path.join(current_path, ".training", exp_name, "augmented_training_set.pt")} \
+    --test_set_path {os.path.join(current_path, ".training", exp_name, "validation_set.pt")} \
+    --logs_dir {os.path.join(current_path, ".training", "logs", exp_name, "lstm")} \
     --epochs 100'.split()
+    # return subprocess.Popen(cmd)
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def train_gan(exp_name: str):
@@ -106,11 +107,11 @@ def train_gan(exp_name: str):
     --test_set_path {os.path.join(current_path, ".training", exp_name, "validation_set.pt")} \
     --observation_size 60 \
     --max_epoch 500 \
-    --logs_dir {os.path.join(current_path, ".training", "logs")}  \
+    --logs_dir {os.path.join(current_path, ".training", "logs", exp_name, "gan")}  \
     --random_seed 42 \
     --exp_name {exp_name}'.split()
-    return subprocess.Popen(cmd)
-    # return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # return subprocess.Popen(cmd)
+    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 class DataSet(Dataset):
@@ -211,7 +212,7 @@ class TrainingWorkflowThread(threading.Thread):
         self.gan_status = None
         self.lstm_status = None
         self.exp_name = exp_name
-        self.model_repository = PytorchModelRepository()
+        self.model_repository = PytorchModelRepository(experiment_name=exp_name)
 
 
     def save_augmented_data_set(self, augmentation_factor: int) -> None:
@@ -265,7 +266,7 @@ class LstmTrainerWithGanAugmentation(Trainer):
         """
         super().__init__()
         self.data_sets = DataSets(min_samples=min_samples, max_samples=2000, split_ratio=0.2, sequence_length=sequence_length, observation_size=observation_size)
-        self.model_repository = PytorchModelRepository()
+        self.model_repository = PytorchModelRepository(experiment_name=exp_name)
         self.exp_name = exp_name
         logger.info(f"Initialized GAN Trainer")
 
@@ -328,9 +329,9 @@ class LstmTrainerWithGanAugmentation(Trainer):
 
 
 if __name__ == "__main__":
-    print("Training GAN")
-    p = train_gan("test")
-    p.wait()
-    # print("Training LSTM")
-    # p = train_lstm()
+    # print("Training GAN")
+    # p = train_gan("test")
     # p.wait()
+    print("Training LSTM")
+    p = train_lstm("test")
+    p.wait()

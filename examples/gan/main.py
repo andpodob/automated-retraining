@@ -6,7 +6,7 @@ import argparse
 import os
 from detector.periodic_detector import PeriodicDetector
 from trainer.trainer import LstmTrainerWithGanAugmentation
-from lstm.model import LSTMModel
+# from lstm.model import LSTMModel
 from auto_retraining.scheduler.scheduler import Scheduler
 from auto_retraining.retraining.detector import Detector
 from auto_retraining.inference.inference import Inference, DataAdapter, OutputSink
@@ -26,6 +26,12 @@ class TestingSink(OutputSink):
         pass
         # print(f"Output: <inference output>")
 
+class DummyInference(Inference):
+    def __init__(self, output_sink: OutputSink):
+        self.output_sink = output_sink
+
+    def infer(self, input_data: Any) -> Any:
+        self.output_sink.receive({"input": input_data, "output": input_data})
 
 class DummyTrainer(Trainer):
     """
@@ -76,13 +82,13 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_file = os.path.join(current_dir, "data", "btcusd_1-min_data.csv")
     datasource = CSVDataSource(batch_size=9000, interval=0, file=data_file)
-    lstm = LSTMModel(input_dim=1, output_dim=15, layer_dim=3, hidden_dim=64, dropout_prob=0.2)
-    model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
-    lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
-    inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
+    # lstm = LSTMModel(input_dim=1, output_dim=15, layer_dim=3, hidden_dim=64, dropout_prob=0.2)
+    # model_checkpoint = torch.load(os.path.join(current_dir, "models", "lstm_model.pth"), map_location=torch.device('cpu'))
+    # lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
+    # inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
     trainer = LstmTrainerWithGanAugmentation(exp_name=args.exp_name, min_samples=1000, observation_size=30, sequence_length=90)
     detector = PeriodicDetector(100)
-    scheduler = Scheduler(detector, inference, trainer)
+    scheduler = Scheduler(detector, DummyInference(output_sink=TestingSink()), trainer)
     scheduler.run(datasource, inference_interval=0, test_mode=True)
 
 

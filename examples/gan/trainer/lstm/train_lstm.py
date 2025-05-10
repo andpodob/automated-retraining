@@ -1,9 +1,14 @@
+import sys
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
 import argparse
 import datetime
 import io
 import os
 import random
-import sys
 
 import PIL
 from matplotlib import pyplot as plt
@@ -95,7 +100,7 @@ def main():
     }
 
     loss_fn = torch.nn.MSELoss(reduction="mean")
-    optimization = Optimization(lstm, loss_fn, optimizer, seq_len=args.seq_len, prediction_size=args.prediction_size)
+    optimization = Optimization(lstm, loss_fn, optimizer, seq_len=args.seq_len, prediction_size=args.prediction_size, experiment_name=args.exp_name,)
 
     optimization.train(
         train_loader=train_loader,
@@ -113,7 +118,7 @@ def main():
 
 
 class Optimization:
-    def __init__(self, model, loss_fn, optimizer, seq_len, prediction_size):
+    def __init__(self, model, loss_fn, optimizer, seq_len, prediction_size, experiment_name):
         """
         Args:
             model (RNNModel, LSTMModel, GRUModel): Model class created for the type of RNN
@@ -127,6 +132,7 @@ class Optimization:
         self.val_losses = []
         self.seq_len = seq_len
         self.prediction_size = prediction_size
+        self.experiment_name = experiment_name
         
     def train_step(self, x, y):
         # Sets model to train mode
@@ -208,7 +214,7 @@ class Optimization:
                 'path_helper': path_helper
             }, os.path.join(path_helper['ckpt_path'], 'checkpoint'))
         #sdawdw
-        model_repository = PytorchModelRepository()
+        model_repository = PytorchModelRepository(experiment_name=self.experiment_name)
         current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M")
         model_repository.write(self.model.state_dict(), "lstm", current_date)
 
