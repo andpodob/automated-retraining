@@ -1,6 +1,7 @@
 # Python cache files
 __pycache__/
 .training/
+.mass_training/
 .repository/
 *.egg-info/
 build/
