@@ -5,6 +5,7 @@ by a GAN and GAN Discriminator used as a detector.
 import argparse
 import os
 from detector.periodic_detector import PeriodicDetector
+from detector.discriminator_detector import DiscriminatorDetector
 from trainer.trainer import LstmTrainerWithGanAugmentation
 # from lstm.model import LSTMModel
 from auto_retraining.scheduler.scheduler import Scheduler
@@ -13,6 +14,7 @@ from auto_retraining.inference.inference import Inference, DataAdapter, OutputSi
 from auto_retraining.inference.pytorch.pytorch_inference import PyTorchInference
 from auto_retraining.trainer.trainer import Trainer, TrainingStatus
 from auto_retraining.data_source.csv.csv_datasource import CSVDataSource
+from auto_retraining.model_repository.pytorch.pytorch_model_repository import PytorchModelRepository
 from typing import Any
 import torch
 import pandas as pd
@@ -87,7 +89,9 @@ def main():
     # lstm.load_state_dict(model_checkpoint["lstm_state_dict"])
     # inference = PyTorchInference(model=lstm, data_adapter=LstmDataAdapter(observarion_len=30), output_sink=TestingSink())
     trainer = LstmTrainerWithGanAugmentation(exp_name=args.exp_name, min_samples=1000, observation_size=30, sequence_length=90)
-    detector = PeriodicDetector(100)
+    # detector = PeriodicDetector(100)
+    current_path = os.getcwd()
+    detector = DiscriminatorDetector(model_repository=PytorchModelRepository(experiment_name=args.exp_name), logs_path=os.path.join(current_path, ".training", "logs", args.exp_name, "detector"), min_samples=1000, observation_size=30, sequence_length=90)
     scheduler = Scheduler(detector, DummyInference(output_sink=TestingSink()), trainer)
     scheduler.run(datasource, inference_interval=0, test_mode=True)
 

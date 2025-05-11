@@ -185,12 +185,12 @@ def main_worker(gpu, args):
             'fixed_z': fixed_z
         }, args.path_helper['ckpt_path'], filename="checkpoint")
         if epoch % 10 == 0:
-            conv = convergence(args.training_set_path, 
+            conv = convergence(train_set, 
                            args.seq_len, 
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
             writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
         del avg_gen_net
-    conv = convergence(args.training_set_path, 
+    conv = convergence(train_set, 
                            args.seq_len, 
                            os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])

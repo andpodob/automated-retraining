@@ -51,9 +51,9 @@ def prepare_signals_set(data):
         signals.append(scaler.transform(signal).reshape(1, -1))
     return signals
 
-def convergence(training_set_path, seq_len, checkpoint_file, N=100, M=20):
-    real_data = DataSet(torch.load(training_set_path))
-    real_signals = prepare_signals_set(real_data)[:N]
+def convergence(training_set, seq_len, checkpoint_file, N=100, M=20):
+    # real_data = DataSet(torch.load(training_set_path))
+    real_signals = prepare_signals_set(training_set)[:N]
     checkpoint = torch.load(checkpoint_file, map_location='cpu')
     gen_net = Generator(seq_len=seq_len)
     gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])

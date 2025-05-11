@@ -30,10 +30,12 @@ class RetrainingThread(threading.Thread):
         print("RetrainingThread started")
         while True:
             try:
-                while not self.detector.verdict():
+                while True:
                     data = self.data_queue.get(block=False)
                     self.trainer.new_data(data)
-                    self.detector.new_data(data)
+                    if not self.detector.verdict():
+                        self.detector.new_data(data)
+                    
             except queue.Empty:
                 logger.debug("Read all data from queue")
 
