@@ -60,10 +60,20 @@ def main_worker(gpu, args):
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
 
+    seq_len = args.seq_len
+    g_embed_dim = args.g_embed_dim
+    d_embed_dim = args.d_embed_dim
+    g_num_heads = args.g_num_heads
+    d_num_heads = args.d_num_heads
+    d_depth = args.d_depth
+    g_depth = args.g_depth
+    g_patch_size = args.g_patch_size
+    d_patch_size = args.d_patch_size
+
     # import network
-    gen_net = Generator(seq_len=args.seq_len)
+    gen_net = Generator(seq_len=args.seq_len, embed_dim=g_embed_dim, patch_size=g_patch_size, num_heads=g_num_heads, depth=g_depth)
     print(gen_net)
-    dis_net = Discriminator(seq_length=args.seq_len)
+    dis_net = Discriminator(seq_length=args.seq_len, patch_size=d_patch_size, emb_size=d_embed_dim, depth=d_depth, num_heads=d_num_heads)
     print(dis_net)
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -147,6 +157,20 @@ def main_worker(gpu, args):
         'train_global_steps': start_epoch * len(train_loader),
         'valid_global_steps': start_epoch // args.val_freq,
     }
+    config_table = f"""
+    | field | value  |
+    |----------|-----------|
+    | g_embed_dim    | {g_embed_dim:.2f} |
+    | d_embed_dim    | {d_embed_dim:.2f} |
+    | d_patch_size    | {d_patch_size:.2f} |
+    | g_patch_size    | {g_patch_size:.2f} |
+    | d_num_heads    | {d_num_heads:.2f} |
+    | g_num_heads    | {g_num_heads:.2f} |
+    | d_depth    | {d_depth:.2f} |
+    | g_depth    | {g_depth:.2f} |
+    """
+    config_table = '\n'.join(l.strip() for l in config_table.splitlines())
+    writer.add_text("table", config_table, 0)
 
     # train loop
     for epoch in range(int(start_epoch), int(args.max_epoch)):
@@ -171,6 +195,7 @@ def main_worker(gpu, args):
         
         avg_gen_net = deepcopy(gen_net)
         load_params(avg_gen_net, gen_avg_param, args)
+        print("!!!!!!!!", args.path_helper['ckpt_path'])
         save_checkpoint({
             'epoch': epoch + 1,
             'gen_model': args.gen_model,
@@ -185,14 +210,15 @@ def main_worker(gpu, args):
             'fixed_z': fixed_z
         }, args.path_helper['ckpt_path'], filename="checkpoint")
         if epoch % 10 == 0:
-            conv = convergence(train_set, 
+            conv = convergence(train_set.data, 
                            args.seq_len, 
-                           os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
+                           avg_gen_net)
             writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
         del avg_gen_net
-    conv = convergence(train_set, 
+    avg_gen_net = deepcopy(gen_net)
+    conv = convergence(train_set.data, 
                            args.seq_len, 
-                           os.path.join(args.path_helper['ckpt_path'], 'checkpoint'))
+                           avg_gen_net)
     writer.add_scalar('conv', conv, writer_dict['train_global_steps'])
     
     model_repository = PytorchModelRepository(experiment_name=args.exp_name)

@@ -20,6 +20,18 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seq_len', default=None, type=int,
                         help='length of generated sequence')
+    parser.add_argument('--g_embed_dim', default=None, type=int,
+                        help='')
+    parser.add_argument('--d_embed_dim', default=None, type=int,
+                        help='')
+    parser.add_argument('--g_num_heads', default=None, type=int,
+                        help='')
+    parser.add_argument('--d_num_heads', default=None, type=int,
+                        help='')
+    parser.add_argument('--g_patch_size', type=int, default=4,
+                        help='Discriminator Depth')
+    parser.add_argument('--d_patch_size', type=int, default=4,
+                        help='Discriminator Depth')
     parser.add_argument('--training_set_path', default=None, type=str,
                         help='path to the training set')
     parser.add_argument('--test_set_path', default=None, type=str,
@@ -257,7 +269,7 @@ def parse_args():
                         help='fade in step')
     parser.add_argument('--d_depth', type=int, default=7,
                         help='Discriminator Depth')
-    parser.add_argument('--g_depth', type=str, default="5,4,2",
+    parser.add_argument('--g_depth', type=int, default=5,
                         help='Generator Depth')
     parser.add_argument('--g_norm', type=str, default="ln",
                         help='Generator Normalization')

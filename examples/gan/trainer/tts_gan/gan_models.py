@@ -205,12 +205,13 @@ class Discriminator(nn.Sequential):
                  patch_size=PATCH_SIZE,
                  emb_size=50, 
                  seq_length = SEQ_LEN,
-                 depth=3, 
+                 depth=3,
+                 num_heads=5, 
                  n_classes=1, 
                  **kwargs):
         super().__init__(
             PatchEmbedding_Linear(in_channels, patch_size, emb_size, seq_length),
-            Dis_TransformerEncoder(depth, emb_size=emb_size, drop_p=0.5, forward_drop_p=0.5, **kwargs),
+            Dis_TransformerEncoder(depth, emb_size=emb_size, num_heads=num_heads, drop_p=0.5, forward_drop_p=0.5, **kwargs),
             ClassificationHead(emb_size, n_classes)
         )
  
